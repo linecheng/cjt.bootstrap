@@ -6,7 +6,10 @@
  * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
  * ======================================================================== */
 
-
+//对于 bootstrap 来说，更多 是基于客户端优先的思路来做的，
+//打开一个Modal ，如果是远端的内容，构造一个Modal时，就会把远端内容加载过来，
+//如果这个Modal已构造，那么也就是说明Modal本身不会变化了。以后再打开，只是show出来。
+//如果考虑远端，那么当是远端加载的时候，应该重新加载该部分内容，而不是toggle.
 +function ($) {
   'use strict';
 
@@ -46,6 +49,16 @@
 
   Modal.prototype.toggle = function (_relatedTarget) {
     return this.isShown ? this.hide() : this.show(_relatedTarget)
+  } 
+  
+  Modal.prototype.refresh=function(_relatedTarget){
+    if(this.options.remote){
+      this.$element
+        .find('.modal-content')
+        .load(this.options.remote, $.proxy(function () {
+          this.$element.trigger('loaded.bs.modal')
+        }, this))
+    }
   }
 
   Modal.prototype.show = function (_relatedTarget) {
@@ -323,9 +336,21 @@
     var $target = $($this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, ''))) // strip for ie7
     var option  = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
 
+    var needRefresh=false;
+    //如果非初此打开，并且是remote的内容，则需要刷新remote内容
+    if($target.data('bs.modal')  && !/#/.test(href)){
+      needRefresh=true;
+      $target.data('bs.modal').options.remote=href;//重新更新href
+    }
+     
     if ($this.is('a')) e.preventDefault()
 
     $target.one('show.bs.modal', function (showEvent) {
+      
+      //刷新modal-content的远端内容
+      if(needRefresh)
+          Plugin.call($target,"refresh",this);
+          
       if (showEvent.isDefaultPrevented()) return // only register focus restorer if modal will actually get shown
       $target.one('hidden.bs.modal', function () {
         $this.is(':visible') && $this.trigger('focus')
